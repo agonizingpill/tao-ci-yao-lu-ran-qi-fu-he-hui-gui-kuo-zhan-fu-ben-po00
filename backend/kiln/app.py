@@ -5,7 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from .operations_evidence import router as operations_evidence
-from . import ledger, reviews, schemas as forms
+from . import ledger, models, reviews, schemas as forms
 from .infra import allow, audit, connect, identity, publish_run, queue, token, verify_password
 
 app = FastAPI(title='陶瓷窑炉燃气负荷回归')
@@ -133,3 +133,29 @@ def propose(code: str, form: forms.ReviewPlan, actor=Depends(operator)):
 @app.post('/batches/{code}/review/confirm')
 def confirm(code: str, actor=Depends(supervisor)):
     return mutate(lambda conn: reviews.confirm_cycle(conn, code, actor), code, actor)
+
+
+@app.get('/models')
+def model_registry(user=Depends(identity)):
+    with connect() as conn:
+        return models.registry(conn)
+
+
+@app.post('/models', status_code=201)
+def register_model(form: forms.ModelRegistration, actor=Depends(supervisor)):
+    return mutate(lambda conn: models.register_model(conn, form, actor), None, actor)
+
+
+@app.post('/models/rollback', status_code=201)
+def rollback_model(form: forms.ModelRollback, actor=Depends(supervisor)):
+    return mutate(lambda conn: models.rollback_model(conn, form.note, actor), None, actor)
+
+
+@app.post('/models/{revision}/evaluate', status_code=201)
+def evaluate_model(revision: str, actor=Depends(supervisor)):
+    return mutate(lambda conn: models.evaluate_model(conn, revision, actor), None, actor)
+
+
+@app.post('/models/{revision}/publish', status_code=201)
+def publish_model(revision: str, form: forms.ModelRelease, actor=Depends(supervisor)):
+    return mutate(lambda conn: models.publish_model(conn, revision, form.rationale, actor), None, actor)

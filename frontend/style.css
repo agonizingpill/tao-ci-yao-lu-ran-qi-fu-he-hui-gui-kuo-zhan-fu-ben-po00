@@ -92,6 +92,9 @@ td small {font-size:.69rem}
 .form-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.48rem .65rem;align-items:end;margin-top:.6rem}
 .schedule-form {grid-template-columns:repeat(4,minmax(0,1fr))}
 .section-title {display:flex;justify-content:space-between;align-items:baseline;gap:.6rem}
+.model-tag {font-size:var(--sm);color:var(--muted);font-weight:600;white-space:nowrap}
+.model-actions {margin-top:.45rem}
+.model-actions button {min-height:32px}
 .coverage {display:grid;grid-template-columns:1fr 1fr;margin:.45rem 0 1rem;border-block:1px solid var(--rule)}
 .coverage > div {padding:.9rem 1rem}.coverage > div+div {border-left:1px solid var(--rule)}
 .coverage span {float:right;color:var(--rust);font-weight:700}.coverage p {margin-top:.35rem;font-size:var(--sm);color:var(--muted)}

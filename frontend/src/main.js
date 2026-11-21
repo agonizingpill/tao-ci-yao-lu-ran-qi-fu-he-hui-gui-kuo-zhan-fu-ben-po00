@@ -1,4 +1,4 @@
-import {accounts, batchAction, createBatch, refresh, role, setSession, signIn, state} from './state.js';
+import {accounts, batchAction, createBatch, modelAction, refresh, role, setSession, signIn, state} from './state.js';
 import {batchRail, esc, field, heading} from './ui.js';
 import {firing} from './firing.js';
 import {load} from './load.js';
@@ -12,7 +12,7 @@ const pages = {
 };
 const currentPage = () => location.hash.slice(1) in pages ? location.hash.slice(1) : 'firing';
 let poll;
-const numeric = new Set(['baseline_version','batch_kg','planned_minutes','peak_c','reading_m3','next_minutes','run_id']);
+const numeric = new Set(['baseline_version','batch_kg','planned_minutes','peak_c','reading_m3','next_minutes','run_id','seed','folds']);
 const timestamps = new Set(['opened_at','closed_at','started_at','ended_at','sampled_at']);
 
 function credentials() {
@@ -78,9 +78,16 @@ root.addEventListener('submit', async (event) => {
       await refresh(); location.hash = 'firing'; render();
       return;
     }
-    const result = action === 'schedule' ? await createBatch(payload) : await batchAction(`/${action}`, payload);
+    if (action === 'models' && typeof payload.l1_ratios === 'string')
+      payload.l1_ratios = payload.l1_ratios.split(/[^0-9.]+/).filter(Boolean).map(Number);
+    const result = action === 'schedule' ? await createBatch(payload)
+      : action === 'models' || action.startsWith('models/') ? await modelAction(action, payload)
+      : await batchAction(`/${action}`, payload);
     await refresh(action === 'schedule' ? result.code : state.code);
-    render(); feedback('已写入台账', 'success');
+    render();
+    if (action.endsWith('/evaluate') && result && result.passed === false)
+      feedback('对照评估未通过：' + (result.failures || []).map(item => item.message).join('；'));
+    else feedback('已写入台账', 'success');
   } catch (error) {
     feedback(error.message);
     document.querySelector('#feedback')?.scrollIntoView({block:'nearest'});

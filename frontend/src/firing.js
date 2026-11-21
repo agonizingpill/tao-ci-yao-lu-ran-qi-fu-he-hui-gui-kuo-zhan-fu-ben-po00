@@ -46,7 +46,7 @@ export function firing(batch) {
 }
 
 export function readingTrace(run) {
-  return `<details class="edit"><summary>追溯试算 #${run.id} 的原始读数</summary><p class="digest">输入 SHA-256 <code>${esc(run.input_hash)}</code></p>
+  return `<details class="edit"><summary>追溯试算 #${run.id} 的原始读数</summary><p class="digest">模型版本 <code>${esc(run.model_revision || run.input_snapshot.model_revision || '—')}</code> · 输入 SHA-256 <code>${esc(run.input_hash)}</code></p>
     ${table(['温区','起止','峰值','记录来源'],run.input_snapshot.curve.map(c => [phase[c.phase],`${date(c.started_at)} – ${clock(c.ended_at)}`,amount(c.peak_c),esc(c.source_file)]))}
     ${table(['抄表时点','表号','累计 m³','记录来源'],run.input_snapshot.meter.map(m => [date(m.sampled_at),esc(m.meter_serial),amount(m.reading_m3),esc(m.source_file)]))}</details>`;
 }

@@ -73,3 +73,20 @@ class ReviewPlan(BaseModel):
     next_minutes: int = Field(ge=30, le=1440)
     attribution: Literal['observed', 'recipe']
     rationale: Reason
+
+
+class ModelRegistration(BaseModel):
+    revision: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=40,
+                                               pattern=r'^[A-Za-z0-9][A-Za-z0-9._-]*$')]
+    seed: int = Field(ge=1, le=999999)
+    l1_ratios: Annotated[list[Annotated[float, Field(gt=0, le=1)]], Field(min_length=1, max_length=8)]
+    folds: int = Field(ge=2, le=10)
+    note: Reason
+
+
+class ModelRelease(BaseModel):
+    rationale: Reason
+
+
+class ModelRollback(BaseModel):
+    note: Reason

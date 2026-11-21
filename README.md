@@ -54,7 +54,11 @@ API 和 worker 共享 `artifacts` 挂载。算法输入和结果通过数据库�
 7. 14:25，工艺主管核对留样与配方单后批准 V4。班长重新提交节拍方案，主管确认周期。
 8. 15:00，能源岗展开节拍方案关联的试算快照，查看三段曲线、五条累计读数和审批轨迹。
 
-另有一组完整的 `K2-1120-B`、一组尚未采集的 `K1-1121-C`。seed 按账号和批次自然键装入，保留用户补录和签核内容。
+另有一组已试算并签核的 `K2-1120-B`（供新旧模型对照取样）、一组尚未采集的 `K1-1121-C`。seed 按账号和批次自然键装入，保留用户补录和签核内容。
+
+## 模型版本发布
+
+工艺主管换用新的燃气回归模型前，系统在负荷分析页以同一批已签核窑次对照新旧预测：任一窑次缺预测，或任一窑号的平均绝对误差上升，即拦截发布。评估记录绑定当时的在用版本，在用版本一变，旧评估须重算后才能发布。发布经数据库咨询锁串行化，并发发布只生效一次；切换在同一事务内完成，失败即保留旧版。提交试算时把在用版本与配置冻结进输入快照，在途试算仍用接单时的版本；回滚只回切在用版本指针，已签核结果照旧。负荷分析页可查到每次试算所用版本、逐版本对照评估和每次切换的依据。
 
 ## 回归口径
 
@@ -62,8 +66,8 @@ API 和 worker 共享 `artifacts` 挂载。算法输入和结果通过数据库�
 
 ## 目录与状态枚举
 
-- `backend/migrations/001_kiln_ledger.sql` 定义档案、事实记录、版本、任务和复核关联。
-- `backend/kiln/` 包含请求契约、接口、炉窑台账、配方与周期审批、异步 worker 和算法。
+- `backend/migrations/001_kiln_ledger.sql` 定义档案、事实记录、版本、任务和复核关联；`backend/migrations/002_model_registry.sql` 定义模型版本、对照评估和切换记录。
+- `backend/kiln/` 包含请求契约、接口、炉窑台账、配方与周期审批、模型版本发布、异步 worker 和算法。
 - `backend/scripts/seed_demo.py` 装入班组练习数据。
 - `frontend/src/` 包含请求与会话状态、共享组件、烧成、分析和复核页面。
 - `Phase` 与 `BatchStatus` 在 `backend/kiln/schemas.py`、`backend/migrations/001_kiln_ledger.sql` 和 `frontend/src/state.js` 定义。角色约束在迁移、`backend/kiln/app.py` / `infra.py` 与 `frontend/src/state.js` 体现。配方审批状态分布在迁移、`schemas.py` 的审批动作、`reviews.py` 和 `state.js`。试算状态见迁移、`ledger.py`、`worker.py` 和 `frontend/src/load.js`。

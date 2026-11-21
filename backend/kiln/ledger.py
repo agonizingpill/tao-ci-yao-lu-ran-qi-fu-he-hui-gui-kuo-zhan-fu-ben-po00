@@ -40,12 +40,32 @@ def raw_readings(conn, code):
     return curves, samples
 
 
+def active_model(conn):
+    row = conn.execute("""SELECT revision,config,note,status,created_by,created_at
+        FROM model_versions WHERE status='active'""").fetchone()
+    require(row, 'NO_ACTIVE_MODEL', '没有在用的燃气回归模型版本', 500)
+    return row
+
+
+def load_snapshot(batch, curves, samples, model):
+    """冻结试算输入，连同接单时的模型版本与配置，在途试算不随切换改变。"""
+    return jsonable_encoder({'cycle': {key: batch[key] for key in ('code', 'recipe', 'baseline_version', 'batch_kg',
+                                                                      'opened_at', 'closed_at', 'planned_minutes')},
+                             'curve': curves, 'meter': samples,
+                             'model_revision': model['revision'], 'model_config': model['config']})
+
+
+def snapshot_digest(snapshot):
+    return hashlib.sha256(json.dumps(snapshot, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
 def dossier(conn, code):
     batch = batch_row(conn, code)
     curves, samples = raw_readings(conn, code)
     return {**batch, 'curves': curves, 'meters': samples,
             'recipes': conn.execute('SELECT * FROM recipe_changes WHERE batch_code=%s ORDER BY version DESC', (code,)).fetchall(),
-            'runs': conn.execute('''SELECT id,batch_code,status,input_hash,result,error,attempts,created_at,input_snapshot
+            'runs': conn.execute('''SELECT id,batch_code,status,input_hash,result,error,attempts,created_at,input_snapshot,
+                                    input_snapshot->>'model_revision' AS model_revision
                                     FROM load_runs WHERE batch_code=%s ORDER BY id DESC''', (code,)).fetchall(),
             'review': conn.execute('SELECT * FROM cycle_reviews WHERE batch_code=%s', (code,)).fetchone(),
             'audit': conn.execute('SELECT * FROM ledger_audit WHERE batch_code=%s ORDER BY id DESC LIMIT 60', (code,)).fetchall()}
@@ -125,10 +145,8 @@ def request_load(conn, code, actor):
     require(batch['status'] != BatchStatus.confirmed, 'CYCLE_CLOSED', '周期已确认')
     curves, samples = raw_readings(conn, code)
     check_coverage(batch, curves, samples)
-    snapshot = jsonable_encoder({'cycle': {key: batch[key] for key in ('code', 'recipe', 'baseline_version', 'batch_kg',
-                                                                      'opened_at', 'closed_at', 'planned_minutes')},
-                                 'curve': curves, 'meter': samples, 'model_revision': 'en-20261121'})
-    digest = hashlib.sha256(json.dumps(snapshot, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    snapshot = load_snapshot(batch, curves, samples, active_model(conn))
+    digest = snapshot_digest(snapshot)
     row = conn.execute('''INSERT INTO load_runs(batch_code,input_hash,input_snapshot,requested_by) VALUES (%s,%s,%s,%s)
         ON CONFLICT DO NOTHING RETURNING id,status,input_hash''', (code, digest, Jsonb(snapshot), actor)).fetchone()
     if row:

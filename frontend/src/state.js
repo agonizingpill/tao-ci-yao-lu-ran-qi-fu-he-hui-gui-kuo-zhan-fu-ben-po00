@@ -3,7 +3,7 @@ export const phase = {ramp: '升温', soak: '保温', cool: '冷却'};
 export const batchStatus = {scheduled: '已排程', recording: '采集中', analyzed: '已试算', confirmed: '周期已确认'};
 export const recipeStatus = {pending: '待审批', approved: '已批准', rejected: '已退回'};
 export const accounts = {operator: 'firing', supervisor: 'chief', viewer: 'energy'};
-export const state = {session: JSON.parse(sessionStorage.getItem('kiln.session') || 'null'), batches: [], batch: null, code: sessionStorage.getItem('kiln.code')};
+export const state = {session: JSON.parse(sessionStorage.getItem('kiln.session') || 'null'), batches: [], batch: null, code: sessionStorage.getItem('kiln.code'), models: null};
 
 export function setSession(session) {
   state.session = session;
@@ -29,10 +29,11 @@ async function request(path, method='GET', value) {
 export const signIn = (form) => request('/login', 'POST', form);
 export const batchAction = (path, form) => request(`/batches/${encodeURIComponent(state.code)}${path}`, 'POST', form);
 export const createBatch = (form) => request('/batches', 'POST', form);
+export const modelAction = (path, form) => request(`/${path}`, 'POST', form);
 export async function refresh(code=state.code) {
-  const batches = await request('/batches');
+  const [batches, models] = await Promise.all([request('/batches'), request('/models')]);
   const selected = batches.some((batch) => batch.code === code) ? code : batches[0]?.code;
   const batch = selected ? await request(`/batches/${encodeURIComponent(selected)}`) : null;
-  Object.assign(state, {batches, batch, code: selected});
+  Object.assign(state, {batches, models, batch, code: selected});
   if (selected) sessionStorage.setItem('kiln.code', selected);
 }
